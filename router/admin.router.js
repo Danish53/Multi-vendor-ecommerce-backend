@@ -8,11 +8,10 @@ const router = express.Router();
 
 // admin 
 router.post("/admin-login", adminLogin);
-router.get("/profile", isAuthenticated, isAuthorized("admin"), getAdminProfile);
+router.get("/profile", isAuthenticated, getAdminProfile);
 router.post(
   "/update-profile",
   isAuthenticated,
-  isAuthorized("admin"),
   upload.single("profileAvatar"),
   updateAdminProfile
 );

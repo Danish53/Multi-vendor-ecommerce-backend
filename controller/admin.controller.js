@@ -33,7 +33,7 @@ export const adminLogin = asyncErrors(async (req, res, next) => {
 });
 export const getAdminProfile = asyncErrors(async (req, res, next) => {
     const admin = await Users.findOne({
-        where: { id: req.user.id, role: "admin" },
+        where: { role: "admin" },
         attributes: { exclude: ["password", "otp"] }
     });
 
@@ -47,7 +47,8 @@ export const getAdminProfile = asyncErrors(async (req, res, next) => {
     });
 });
 export const updateAdminProfile = asyncErrors(async (req, res, next) => {
-    const admin = await Users.findOne({ where: { id: req.user.id, role: "admin" } });
+    const { id } = req.user;
+    const admin = await Users.findOne({ where: { id } });
 
     if (!admin) {
         return next(new ErrorHandler("Admin not found", 404));
