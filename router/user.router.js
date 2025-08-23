@@ -1,5 +1,5 @@
 import express from "express";
-import { getAllProductsFilters, getProfile, login, register, updateProfile } from "../controller/user.controller.js";
+import { getAllProductsFilters, getFeaturedProducts, getPopularProducts, getProductDetail, getProfile, login, register, updateProfile } from "../controller/user.controller.js";
 import { upload } from "../middleware/multer.js";
 import { isAuthenticated } from "../middleware/Auth.js";
 import { getAllCategories } from "../controller/admin.controller.js";
@@ -21,6 +21,12 @@ router.get("/all-categories", getAllCategories);
 
 // filter products
 router.get("/products", getAllProductsFilters);
+router.get("/product-detail/:productId", getProductDetail);
+// popular products
+router.get("/popular-products", getPopularProducts);
+// featured products
+router.get("/featured-products", getFeaturedProducts);
+
 
 
 

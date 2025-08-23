@@ -5,6 +5,9 @@ import { Users } from "../model/user.model.js";
 import { sendToken } from "../utils/jwtToken.js";
 import { sendMail } from "../utils/sendMail.js";
 import { Categories } from "../model/category.model.js";
+import slugify from "slugify";
+import { Products } from "../model/product.model.js";
+import { ProductImages } from "../model/productImages.model.js";
 
 // Auth admin
 export const adminLogin = asyncErrors(async (req, res, next) => {
@@ -138,7 +141,7 @@ export const createCategory = asyncErrors(async (req, res, next) => {
 
     res.status(200).json({ success: true, message: "Category created", category });
 });
-export const getAllCategories = async (req, res) => {
+export const getAllCategories = async (req, res, next) => {
     try {
         const category = await Categories.findAll();
         res.status(200).json({ success: "true", category: category });
@@ -146,7 +149,7 @@ export const getAllCategories = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
-export const updateCategory = async (req, res) => {
+export const updateCategory = async (req, res, next) => {
     const { id } = req.params;
     try {
         const { name } = req.body;
@@ -163,13 +166,15 @@ export const updateCategory = async (req, res) => {
             imagePath = `${baseUrl}${req.file.filename}`;
         }
 
-        await category.update({ name, category_image: imagePath });
+        const slug = slugify(name, { lower: true, strict: true });
+
+        await category.update({ name, category_image: imagePath, slug });
         res.status(200).json({ success: true, message: "Category Updated successfull!", category });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 };
-export const deleteCategory = async (req, res) => {
+export const deleteCategory = async (req, res, next) => {
     const { id } = req.params;
     try {
         const category = await Categories.findByPk(id);
@@ -181,6 +186,125 @@ export const deleteCategory = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+// isPopular
+export const updateProductPopularity = async (req, res, next) => {
+    try {
+        const { productId, isPopular } = req.body;
+
+        const products = await Products.findOne({ where: { id: productId } })
+
+        if (!products) {
+            return next(new ErrorHandler("Product not found!", 404))
+        }
+
+        await Products.update(
+            { isPopular },
+            { where: { id: productId } }
+        );
+
+        res.status(200).json({ success: true, message: "Product popularity updated" });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+// isFeature
+export const updateProductFeature = async (req, res, next) => {
+    try {
+        const { productId, isFeature } = req.body;
+
+        const products = await Products.findOne({ where: { id: productId } })
+
+        if (!products) {
+            return next(new ErrorHandler("Product not found!", 404))
+        }
+
+        await Products.update(
+            { isFeature },
+            { where: { id: productId } }
+        );
+
+        res.status(200).json({ success: true, message: "Product Featured updated" });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// users/vendors list
+export const allUsers = async (req, res, next) => {
+    try {
+        const users = await Users.findAll({ where: { role: "user" } });
+        res.status(200).json({ success: "true", total_users: users.length, users });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+export const allVendors = async (req, res, next) => {
+    try {
+        const vendor = await Users.findAll({ where: { role: "vendor" } });
+        res.status(200).json({ success: "true", total_vendors: vendor.length, vendor });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+// vendors products
+export const getSingleVendorProducts = asyncErrors(async (req, res, next) => {
+    const { vendor_id } = req.params;
+
+    const products = await Products.findAll({
+        where: { vendor_id },
+        include: [
+            {
+                model: ProductImages,
+                as: "gallery_images",
+                attributes: ["id", "gallery_images"],
+            },
+        ],
+    });
+
+    if (!products || products.length === 0) {
+        return next(new ErrorHandler("No products found for this vendor!", 404));
+    }
+
+    const baseUrl = `${req.protocol}://${req.get("host")}/assets/`;
+
+    // Format response
+    const formattedProducts = products.map((product) => {
+        return {
+            id: product.id,
+            name: product.name,
+            description: product.description,
+            price: product.price,
+            discount_price: product.discount_price,
+            stock: product.stock,
+            category_name: product.category_name,
+            status: product.status,
+            rating: product.rating,
+            is_like: product.is_like,
+            vendor_id: product.vendor_id,
+            category_id: product.category_id,
+            product_image: product.product_image
+                ? baseUrl + product.product_image
+                : null,
+            gallery_images: product.gallery_images
+                ?.filter((img) => img.gallery_images)
+                .map((img) => baseUrl + img.gallery_images),
+            createdAt: product.createdAt,
+            updatedAt: product.updatedAt,
+        };
+    });
+
+    const totalProducts = await Products.count();
+
+    res.status(200).json({
+        success: true,
+        totalProducts,
+        products: formattedProducts,
+    });
+});
+
+
 
 
 

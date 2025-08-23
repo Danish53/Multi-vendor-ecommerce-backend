@@ -1,3 +1,4 @@
+import { col, fn, Op } from "sequelize";
 import { asyncErrors } from "../middleware/asyncErrors.js";
 import ErrorHandler from "../middleware/error.js";
 import { Categories } from "../model/category.model.js";
@@ -200,7 +201,9 @@ export const getProfile = asyncErrors(async (req, res, next) => {
 // all Categories
 export const getAllCategories = async (req, res) => {
     try {
-        const category = await Categories.findAll();
+        const category = await Categories.findAll({
+            order: [["id", "DESC"]],
+        });
         res.status(200).json({ success: "true", category: category });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -210,41 +213,58 @@ export const getAllCategories = async (req, res) => {
 // products with filter
 export const getAllProductsFilters = asyncErrors(async (req, res, next) => {
     try {
-        const { category, minPrice, maxPrice } = req.query;
+        const { category_slug, minPrice, maxPrice } = req.query;
 
         let whereClause = {};
 
         // price filter
         if (minPrice && maxPrice) {
-            whereClause.price = { [Op.between]: [Number(minPrice), Number(maxPrice)] };
+            whereClause.price = { [Op.between]: [parseFloat(minPrice), parseFloat(maxPrice)] };
         } else if (minPrice) {
-            whereClause.price = { [Op.gte]: Number(minPrice) };
+            whereClause.price = { [Op.gte]: parseFloat(minPrice) };
         } else if (maxPrice) {
-            whereClause.price = { [Op.lte]: Number(maxPrice) };
+            whereClause.price = { [Op.lte]: parseFloat(maxPrice) };
         }
 
-        // category filter
-        let categoryWhere = {};
-        if (category) {
-            categoryWhere.name = category;
+        // ✅ Category filter
+        let includeClause = [];
+        if (category_slug) {
+            includeClause.push({
+                model: Categories,
+                as: "category",
+                where: { slug: category_slug },
+                attributes: ["id", "name", "slug"],
+            });
+        } else {
+            includeClause.push({
+                model: Categories,
+                as: "category",
+                attributes: ["id", "name", "slug"],
+            });
         }
 
         const products = await Products.findAll({
             where: whereClause,
-            include: [
-                {
-                    model: Categories,
-                    as: "category",
-                    where: categoryWhere,
-                    attributes: ["id", "name"],
-                },
-            ],
+            include: includeClause,
             attributes: ["id", "name", "price", "description", "product_image", "discount_price", "vendor_id", "product_status", "stock", "rating", "is_like"],
         });
 
+        const productsTotal = await Products.findAll({
+            attributes: [
+                [fn("MIN", col("price")), "minPrice"],
+                [fn("MAX", col("price")), "maxPrice"],
+            ],
+            raw: true,
+        });
+
+        const totalCount = await Products.count();
+
         res.status(200).json({
             success: true,
-            count: products.length,
+            filter_product_count: products.length,
+            totalProducts: totalCount,
+            min_price: productsTotal[0].minPrice,
+            max_price: productsTotal[0].maxPrice,
             products,
         });
     } catch (error) {
@@ -252,6 +272,46 @@ export const getAllProductsFilters = asyncErrors(async (req, res, next) => {
         res.status(500).json({ error: error.message });
     }
 });
+export const getProductDetail = async (req, res, next) => {
+    const { productId } = req.params;
+    try {
+        const product = await Products.findOne({
+            where: { id: productId }
+        });
+
+        if (!product) {
+            return next(new ErrorHandler("product not found!", 404))
+        }
+
+        res.status(200).json({ success: true, product });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// popular products
+export const getPopularProducts = async (req, res) => {
+    try {
+        const popular = await Products.findAll({
+            where: { isPopular: true }
+        });
+        res.status(200).json({ success: true, products: popular });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+// popular products
+export const getFeaturedProducts = async (req, res) => {
+    try {
+        const feature = await Products.findAll({
+            where: { isFeature: true }
+        });
+        res.status(200).json({ success: true, products: feature });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
 
 
 

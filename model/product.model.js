@@ -66,7 +66,14 @@ const Products = sequelize.define("products", {
         onDelete: "CASCADE",
         onUpdate: "CASCADE"
     },
-
+    isPopular: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+    },
+    isFeature: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+    },
 }, {
     timestamps: true,
 });
