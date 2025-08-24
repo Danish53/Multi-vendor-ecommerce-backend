@@ -41,9 +41,17 @@ export const getAdminProfile = asyncErrors(async (req, res, next) => {
         return next(new ErrorHandler("Admin not found", 404));
     }
 
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+    const adminData = {
+        ...admin.toJSON(),
+        profileAvatar: admin.profileAvatar
+            ? `${baseUrl}/assets/${admin.profileAvatar}`
+            : null
+    };
+
     res.status(200).json({
         success: true,
-        user: admin,
+        user: adminData,
     });
 });
 export const updateAdminProfile = asyncErrors(async (req, res, next) => {
@@ -79,10 +87,17 @@ export const updateAdminProfile = asyncErrors(async (req, res, next) => {
 
     await admin.save();
 
+    const avatarUrl = admin.profileAvatar
+        ? `${req.protocol}://${req.get("host")}/assets/${admin.profileAvatar}`
+        : "https://i.pravatar.cc/150"; // fallback dummy avatar
+
     res.status(200).json({
         success: true,
         message: "Admin profile updated successfully",
-        user: admin,
+        user: {
+            ...admin.toJSON(),
+            profileAvatar: avatarUrl, // override with full path
+        },
     });
 });
 
@@ -248,6 +263,31 @@ export const allVendors = async (req, res, next) => {
         res.status(500).json({ error: error.message });
     }
 }
+// Soft delete
+export const toggleSoftDeleteUser = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+
+        const user = await Users.findByPk(id);
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        if (user.deleted_at) {
+            user.deleted_at = null;
+            await user.save();
+            return res.status(200).json({ success: true, message: "User restored successfully", user });
+        } else {
+            user.deleted_at = new Date();
+            await user.save();
+            return res.status(200).json({ success: true, message: "User soft deleted successfully", user });
+        }
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 
 // vendors products
 export const getSingleVendorProducts = asyncErrors(async (req, res, next) => {

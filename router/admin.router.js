@@ -1,5 +1,5 @@
 import express from "express";
-import { adminLogin, allUsers, allVendors, createCategory, deleteCategory, getAdminProfile, getAllCategories, getSingleVendorProducts, updateAdminProfile, updateCategory, updateProductFeature, updateProductPopularity, updateVendorStatus } from "../controller/admin.controller.js";
+import { adminLogin, allUsers, allVendors, createCategory, deleteCategory, getAdminProfile, getAllCategories, getSingleVendorProducts, toggleSoftDeleteUser, updateAdminProfile, updateCategory, updateProductFeature, updateProductPopularity, updateVendorStatus } from "../controller/admin.controller.js";
 import { isAuthenticated, isAuthorized } from "../middleware/Auth.js";
 import { upload } from "../middleware/multer.js";
 
@@ -29,6 +29,7 @@ router.post("/update-featured", updateProductFeature);
 // all users/vendors
 router.get("/all-users", allUsers);
 router.get("/all-vendors", allVendors);
+router.delete("/soft-toggle-delete/:id", toggleSoftDeleteUser);
 // single vendor products
 router.get("/single-vendor-products/:vendor_id", getSingleVendorProducts);
 

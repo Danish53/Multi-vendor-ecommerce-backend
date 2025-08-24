@@ -116,6 +116,14 @@ export const login = asyncErrors(async (req, res, next) => {
         }
     }
 
+    if (user.deleted_at) {
+        return res.status(400).json({
+            success: false,
+            message: "Your account has been deactivated. Please contact support."
+        });
+    }
+
+
     const isPasswordMatch = await user.comparePassword(password);
 
     if (!isPasswordMatch) {

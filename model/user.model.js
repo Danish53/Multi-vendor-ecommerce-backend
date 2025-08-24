@@ -56,6 +56,11 @@ const Users = sequelize.define(
         business_license: {
             type: DataTypes.STRING,
         },
+        deleted_at: {
+            type: DataTypes.DATE,
+            defaultValue: null,
+            allowNull: true,
+        }
     },
 
     {
