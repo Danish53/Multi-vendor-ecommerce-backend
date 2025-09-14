@@ -16,7 +16,6 @@ import userRouter from "./router/user.router.js";
 import adminRouter from "./router/admin.router.js";
 import vendorRouter from "./router/vendor.router.js";
 
-
 // __dirname support in ES module
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

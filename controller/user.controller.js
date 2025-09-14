@@ -331,7 +331,8 @@ export const getProductDetail = async (req, res, next) => {
         }
 
         // const baseUrl = `${req.protocol}://${req.get("host")}/assets/`;
-        const baseUrl = `${process.env.BASE_URL}/assets/`;
+        // const baseUrl = `${process.env.BASE_URL}/assets/`;
+        const baseUrl = `${process.env.BASE_URL || req.protocol + "://" + req.get("host")}/assets/`;
         const productWithImageUrl = {
             ...product.toJSON(),
             product_image: `${baseUrl}${product.product_image}`
