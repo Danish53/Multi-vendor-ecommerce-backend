@@ -3,6 +3,7 @@ import { getAllProductsFilters, getFeaturedProducts, getPopularProducts, getProd
 import { upload } from "../middleware/multer.js";
 import { isAuthenticated } from "../middleware/Auth.js";
 import { getAllCategories } from "../controller/admin.controller.js";
+import { checkout } from "../controller/checkout.controller.js";
 
 
 const router = express.Router();
@@ -26,6 +27,9 @@ router.get("/product-detail/:productId", getProductDetail);
 router.get("/popular-products", getPopularProducts);
 // featured products
 router.get("/featured-products", getFeaturedProducts);
+// checkout
+router.post("/checkout", checkout);
+
 
 
 

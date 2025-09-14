@@ -33,7 +33,7 @@ const Users = sequelize.define(
         },
         phone: {
             type: DataTypes.STRING,
-            allowNull: false,
+            // allowNull: false,
         },
         shop_name: {
             type: DataTypes.STRING,
@@ -55,6 +55,21 @@ const Users = sequelize.define(
         },
         business_license: {
             type: DataTypes.STRING,
+        },
+        payment_method: {
+            type: DataTypes.ENUM("Easypaisa", "JazzCash", "Bank"), // e.g. "Easypaisa", "JazzCash", "Bank"
+            allowNull: true,
+            defaultValue: null
+        },
+        payment_details: {
+            type: DataTypes.STRING,
+            allowNull: true,
+            defaultValue: null
+        },
+        bank_name: {
+            type: DataTypes.STRING,
+            allowNull: true,
+            defaultValue: null
         },
         deleted_at: {
             type: DataTypes.DATE,

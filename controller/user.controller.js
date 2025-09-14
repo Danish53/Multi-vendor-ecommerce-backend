@@ -18,7 +18,12 @@ export const register = asyncErrors(async (req, res, next) => {
         shop_name,
         phone,
         address,
+        payment_method,
+        payment_details,
+        bank_name
     } = req.body;
+
+    console.log(req.body, "body")
 
     const business_license = req.file ? req.file.filename : null;
 
@@ -42,6 +47,14 @@ export const register = asyncErrors(async (req, res, next) => {
         return next(new ErrorHandler("Vendor must provide shop_name, business_license, and address!", 400));
     }
 
+    if (role === "vendor" && (!payment_method || !payment_details)) {
+        return next(new ErrorHandler("Vendor must provide payment method and payment details!", 400));
+    }
+
+    if (role === "vendor" && payment_method === "Bank" && !bank_name) {
+        return next(new ErrorHandler("Vendor must provide bank_name if payment method is Bank!", 400));
+    }
+
     try {
         // Check for duplicates
         const [userEmail, userName] = await Promise.all([
@@ -63,6 +76,9 @@ export const register = asyncErrors(async (req, res, next) => {
             phone: phone || null,
             address: role === "vendor" ? address : null,
             business_license: role === "vendor" ? business_license : null,
+            payment_method: role === "vendor" ? payment_method : null,
+            payment_details: role === "vendor" ? payment_details : null,
+            bank_name: role === "vendor" && payment_method === "Bank" ? bank_name : null,
             is_approved: role === "vendor" ? 0 : 1
         });
 
@@ -84,12 +100,15 @@ export const register = asyncErrors(async (req, res, next) => {
                 <p><strong>Email:</strong> ${email}</p>
                 <p><strong>Phone:</strong> ${phone}</p>
                 <p><strong>Shop Name:</strong> ${shop_name}</p>
+                <p><strong>payment Method:</strong> ${payment_method}</p>
+                <p><strong>Account Number:</strong> ${payment_details}</p>
+                ${payment_method === "Bank" ? `<p><strong>Bank Name:</strong> ${bank_name}</p>` : ""}
             `,
                 });
             }
         }
 
-        sendToken(user, 200, `${role} registered successfully!`, res);
+        sendToken(user, 200, `${role} registered successfully! ${role === "vendor" ? "Your Detail has been sent to admin. Please wait for approval before login." : ""}`, res);
     } catch (error) {
         return next(new ErrorHandler(error.message, 500));
     }
@@ -142,6 +161,9 @@ export const login = asyncErrors(async (req, res, next) => {
         address: user.address,
         is_approved: user.is_approved,
         business_license: user.business_license,
+        payment_method: user.payment_method,
+        payment_details: user.payment_details,
+        bank_name: user.bank_name,
     };
 
     sendToken(userData, 200, `${user.role} logged in successfully!`, res);
@@ -192,7 +214,7 @@ export const getProfile = asyncErrors(async (req, res, next) => {
     const user = await Users.findOne({
         where: { id },
         attributes: {
-            exclude: ["password", "otp"] // Don't return sensitive fields
+            exclude: ["password", "otp"]
         }
     });
 
@@ -200,9 +222,18 @@ export const getProfile = asyncErrors(async (req, res, next) => {
         return next(new ErrorHandler("User not found", 404));
     }
 
+    const baseUrl = `${req.protocol}://${req.get("host")}/assets/`;
+
+    // agar profileAvatar aur licenseImage fields hain to unka full URL bana lo
+    const userData = {
+        ...user.toJSON(),
+        profileAvatar: user.profileAvatar ? baseUrl + user.profileAvatar : null,
+        business_license: user.business_license ? baseUrl + user.business_license : null
+    };
+
     res.status(200).json({
         success: true,
-        user,
+        user: userData,
     });
 });
 
@@ -257,6 +288,13 @@ export const getAllProductsFilters = asyncErrors(async (req, res, next) => {
             attributes: ["id", "name", "price", "description", "product_image", "discount_price", "vendor_id", "product_status", "stock", "rating", "is_like"],
         });
 
+        const plainProducts = products.map((p) => p.toJSON());
+        const baseUrl = `${req.protocol}://${req.get("host")}/assets/`;
+        const productsWithUrl = plainProducts.map((p) => ({
+            ...p,
+            product_image: p.product_image ? baseUrl + p.product_image : null,
+        }));
+
         const productsTotal = await Products.findAll({
             attributes: [
                 [fn("MIN", col("price")), "minPrice"],
@@ -269,11 +307,11 @@ export const getAllProductsFilters = asyncErrors(async (req, res, next) => {
 
         res.status(200).json({
             success: true,
-            filter_product_count: products.length,
+            filter_product_count: productsWithUrl.length,
             totalProducts: totalCount,
             min_price: productsTotal[0].minPrice,
             max_price: productsTotal[0].maxPrice,
-            products,
+            products: productsWithUrl,
         });
     } catch (error) {
         console.error(error);
@@ -290,8 +328,14 @@ export const getProductDetail = async (req, res, next) => {
         if (!product) {
             return next(new ErrorHandler("product not found!", 404))
         }
+        
+        const baseUrl = `${req.protocol}://${req.get("host")}/assets/`;
+        const productWithImageUrl = {
+            ...product.toJSON(),
+            product_image: `${baseUrl}${product.product_image}`
+        };
 
-        res.status(200).json({ success: true, product });
+        res.status(200).json({ success: true, product: productWithImageUrl });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -303,22 +347,47 @@ export const getPopularProducts = async (req, res) => {
         const popular = await Products.findAll({
             where: { isPopular: true }
         });
-        res.status(200).json({ success: true, products: popular });
+
+        const baseUrl = `${req.protocol}://${req.get("host")}/assets/`;
+
+        const productsWithUrls = popular.map(product => {
+            return {
+                ...product.dataValues,
+                product_image: product.product_image ? baseUrl + product.product_image : null
+            };
+        });
+
+        res.status(200).json({ success: true, products: productsWithUrls });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 };
+
 // popular products
 export const getFeaturedProducts = async (req, res) => {
     try {
         const feature = await Products.findAll({
             where: { isFeature: true }
         });
-        res.status(200).json({ success: true, products: feature });
+
+        const baseUrl = `${req.protocol}://${req.get("host")}/assets/`;
+
+        const productsWithUrls = feature.map(product => {
+            return {
+                ...product.dataValues,
+                product_image: product.product_image ? baseUrl + product.product_image : null
+            };
+        });
+
+
+        res.status(200).json({ success: true, products: productsWithUrls });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 };
+
+// checkout
+
 
 
 
