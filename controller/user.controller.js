@@ -289,8 +289,8 @@ export const getAllProductsFilters = asyncErrors(async (req, res, next) => {
         });
 
         const plainProducts = products.map((p) => p.toJSON());
-        // const baseUrl = `${req.protocol}://${req.get("host")}/assets/`;
-        const baseUrl = `${process.env.BASE_URL}/assets/`;
+        const baseUrl = `${req.protocol}://${req.get("host")}/assets/`;
+        // const baseUrl = `${process.env.BASE_URL}/assets/`;
         const productsWithUrl = plainProducts.map((p) => ({
             ...p,
             product_image: p.product_image ? baseUrl + p.product_image : null,
@@ -330,9 +330,8 @@ export const getProductDetail = async (req, res, next) => {
             return next(new ErrorHandler("product not found!", 404))
         }
 
-        // const baseUrl = `${req.protocol}://${req.get("host")}/assets/`;
+        const baseUrl = `${req.protocol}://${req.get("host")}/assets/`;
         // const baseUrl = `${process.env.BASE_URL}/assets/`;
-        const baseUrl = `${process.env.BASE_URL || req.protocol + "://" + req.get("host")}/assets/`;
         const productWithImageUrl = {
             ...product.toJSON(),
             product_image: `${baseUrl}${product.product_image}`
@@ -351,8 +350,8 @@ export const getPopularProducts = async (req, res) => {
             where: { isPopular: true }
         });
 
-        // const baseUrl = `${req.protocol}://${req.get("host")}/assets/`;
-        const baseUrl = `${process.env.BASE_URL}/assets/`;
+        const baseUrl = `${req.protocol}://${req.get("host")}/assets/`;
+        // const baseUrl = `${process.env.BASE_URL}/assets/`;
         const productsWithUrls = popular.map(product => {
             return {
                 ...product.dataValues,
@@ -373,8 +372,8 @@ export const getFeaturedProducts = async (req, res) => {
             where: { isFeature: true }
         });
 
-        // const baseUrl = `${req.protocol}://${req.get("host")}/assets/`;
-        const baseUrl = `${process.env.BASE_URL}/assets/`;
+        const baseUrl = `${req.protocol}://${req.get("host")}/assets/`;
+        // const baseUrl = `${process.env.BASE_URL}/assets/`;
 
         const productsWithUrls = feature.map(product => {
             return {
