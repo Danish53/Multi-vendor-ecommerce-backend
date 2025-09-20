@@ -293,6 +293,7 @@ export const getAllProductsFilters = asyncErrors(async (req, res, next) => {
         const baseUrl = process.env.BASE_URL
             ? `${process.env.BASE_URL}/assets/`
             : `${req.protocol}://${req.get("host")}/assets/`;
+            console.log(baseUrl, "env log.......")
         // const baseUrl = `${process.env.BASE_URL}/assets/`;
         const productsWithUrl = plainProducts.map((p) => ({
             ...p,
