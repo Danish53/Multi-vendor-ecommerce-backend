@@ -290,7 +290,9 @@ export const getAllProductsFilters = asyncErrors(async (req, res, next) => {
 
         const plainProducts = products.map((p) => p.toJSON());
         // const baseUrl = `${req.protocol}://${req.get("host")}/assets/`;
-        const baseUrl = `${process.env.BASE_URL}/assets/` || `${req.protocol}://${req.get("host")}/assets/`;
+        const baseUrl = process.env.BASE_URL
+            ? `${process.env.BASE_URL}/assets/`
+            : `${req.protocol}://${req.get("host")}/assets/`;
         // const baseUrl = `${process.env.BASE_URL}/assets/`;
         const productsWithUrl = plainProducts.map((p) => ({
             ...p,
