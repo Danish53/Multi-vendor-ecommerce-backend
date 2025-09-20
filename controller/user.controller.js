@@ -323,29 +323,63 @@ export const getAllProductsFilters = asyncErrors(async (req, res, next) => {
         res.status(500).json({ error: error.message });
     }
 });
+
 export const getProductDetail = async (req, res, next) => {
     const { productId } = req.params;
     try {
+        // Get product with user + category
         const product = await Products.findOne({
-            where: { id: productId }
+            where: { id: productId },
+            include: [
+                { model: Users, as: "user", attributes: ["id", "shop_name"] },
+                { model: Categories, as: "category", attributes: ["id", "name", "slug"] }
+            ]
         });
 
         if (!product) {
-            return next(new ErrorHandler("product not found!", 404))
+            return next(new ErrorHandler("product not found!", 404));
         }
 
         const baseUrl = `${req.protocol}://${req.get("host")}/assets/`;
-        // const baseUrl = `${process.env.BASE_URL}/assets/`;
-        const productWithImageUrl = {
+
+        let productWithImageUrl = {
             ...product.toJSON(),
-            product_image: `${baseUrl}${product.product_image}`
+            product_image: `${baseUrl}${product.product_image}`,
+            shop_name: product.user?.shop_name || null
         };
 
-        res.status(200).json({ success: true, product: productWithImageUrl });
+        // Related products (same category)
+        let relatedProducts = [];
+        if (product.category?.id) {
+            const related = await Products.findAll({
+                where: {
+                    category_id: product.category.id,
+                    id: { [Op.ne]: product.id } // exclude current product
+                },
+                limit: 6
+            });
+
+            relatedProducts = related.map(rp => ({
+                ...rp.toJSON(),
+                product_image: `${baseUrl}${rp.product_image}`
+            }));
+        }
+
+        // Nest relatedProducts under product
+        productWithImageUrl = {
+            ...productWithImageUrl,
+            relatedProducts
+        };
+
+        res.status(200).json({
+            success: true,
+            product: productWithImageUrl
+        });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 };
+
 
 // popular products
 export const getPopularProducts = async (req, res) => {
