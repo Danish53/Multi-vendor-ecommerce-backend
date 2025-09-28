@@ -23,6 +23,7 @@ import { ProductImages } from "../model/productImages.model.js";
 import { Orders } from "../model/orders.model.js";
 import { OrderItems } from "../model/orderItems.model.js";
 import "../model/index.js";
+import { Contact } from "../model/contact.model.js";
 
 /**
  * Sequentially sync all tables to avoid foreign key issues
@@ -38,6 +39,7 @@ export const syncAllTables = async (req, res) => {
     await ProductImages.sync({ alter: true });
     await Orders.sync({ alter: true });
     await OrderItems.sync({ alter: true });
+    await Contact.sync({ alter: true });
 
     res.status(200).json({ message: "All tables synchronized successfully!" });
   } catch (err) {
