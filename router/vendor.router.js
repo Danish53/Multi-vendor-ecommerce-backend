@@ -1,6 +1,6 @@
 import express from "express";
 import { upload } from "../middleware/multer.js";
-import { addProduct, deleteVendorProduct, getSingleProduct, getVendorProducts, updateProduct } from "../controller/vendor.controller.js";
+import { addProduct, deleteVendorProduct, getSingleProduct, getVendorOrders, getVendorProducts, updateProduct } from "../controller/vendor.controller.js";
 import { isAuthenticated } from "../middleware/Auth.js";
 
 
@@ -18,5 +18,8 @@ router.put("/update-product/:productId", isAuthenticated, upload.fields([
 router.get("/vendor-products", isAuthenticated, getVendorProducts);
 router.get("/single-product-detail/:productId", isAuthenticated, getSingleProduct);
 router.delete("/delete-products/:productId", isAuthenticated, deleteVendorProduct);
+// orders
+router.get("/vendor-orders", isAuthenticated, getVendorOrders);
+
 
 export default router;

@@ -1,5 +1,5 @@
 import express from "express";
-import { getAllProductsFilters, getFeaturedProducts, getPopularProducts, getProductDetail, getProfile, login, register, updateProfile } from "../controller/user.controller.js";
+import { getAllProductsFilters, getFeaturedProducts, getPopularProducts, getProductDetail, getProfile, getUserOrderDetail, getUserOrders, login, register, submitContact, updateProfile } from "../controller/user.controller.js";
 import { upload } from "../middleware/multer.js";
 import { isAuthenticated } from "../middleware/Auth.js";
 import { getAllCategories } from "../controller/admin.controller.js";
@@ -29,7 +29,11 @@ router.get("/popular-products", getPopularProducts);
 router.get("/featured-products", getFeaturedProducts);
 // checkout
 router.post("/checkout", checkout);
-
+// orders
+router.get("/user-orders-list", isAuthenticated, getUserOrders);
+router.get("/user-orders-detail/:orderId", isAuthenticated, getUserOrderDetail);
+// contact us
+router.post("/contact", submitContact);
 
 
 

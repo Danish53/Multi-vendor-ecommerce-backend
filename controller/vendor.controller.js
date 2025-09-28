@@ -4,6 +4,9 @@ import { asyncErrors } from "../middleware/asyncErrors.js";
 import ErrorHandler from "../middleware/error.js";
 import { ProductImages } from "../model/productImages.model.js";
 import { Categories } from "../model/category.model.js";
+import { Orders } from "../model/orders.model.js";
+import { OrderItems } from "../model/orderItems.model.js";
+import { Users } from "../model/user.model.js";
 
 // products
 export const addProduct = asyncErrors(async (req, res, next) => {
@@ -275,6 +278,75 @@ export const getSingleProduct = asyncErrors(async (req, res, next) => {
         product: formattedProduct,
     });
 });
+
+// single vendor orders
+export const getVendorOrders = async (req, res) => {
+  try {
+    const { id } = req.user; // vendor id
+
+    const orders = await Orders.findAll({
+      include: [
+        {
+          model: OrderItems,
+          as: "items",
+          required: true, // sirf wahi orders jinke items milenge
+          include: [
+            {
+              model: Products,
+              as: "product",
+              required: true,
+              where: { vendor_id: id }, // 👈 sirf is vendor ke products
+              include: [
+                {
+                  model: Users,
+                  as: "user", // vendor info
+                  attributes: ["id", "user_name", "email"],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          model: Users,
+          as: "customer", // jisne order place kiya
+          attributes: ["id", "user_name", "email"],
+        },
+      ],
+      order: [["createdAt", "DESC"]],
+    });
+
+    // formatted response with images
+    const formattedOrders = orders.map((order) => ({
+      ...order.toJSON(),
+      items: order.items.map((item) => ({
+        ...item.toJSON(),
+        product: {
+          ...item.product.toJSON(),
+          image: item.product.image
+            ? `${process.env.BASE_URL}/assets/${item.product.image}`
+            : null,
+        },
+      })),
+    }));
+
+    res.json({
+      success: true,
+      total_orders: formattedOrders.length,
+      orders: formattedOrders,
+    });
+  } catch (error) {
+    console.error("Error fetching vendor orders:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching vendor orders",
+      error: error.message,
+    });
+  }
+};
+
+
+
+
 
 
 

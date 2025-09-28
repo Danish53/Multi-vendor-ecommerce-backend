@@ -6,6 +6,9 @@ import { Products } from "../model/product.model.js";
 import { Users } from "../model/user.model.js";
 import { sendToken } from "../utils/jwtToken.js";
 import { sendMail } from "../utils/sendMail.js";
+import { Orders } from "../model/orders.model.js";
+import { OrderItems } from "../model/orderItems.model.js";
+import { Contact } from "../model/contact.model.js";
 
 // Auth User
 export const register = asyncErrors(async (req, res, next) => {
@@ -88,7 +91,6 @@ export const register = asyncErrors(async (req, res, next) => {
                 attributes: ["email"],
                 raw: true
             });
-            console.log(adminUser.email, "admin email");
 
             if (adminUser?.email) {
                 await sendMail({
@@ -236,6 +238,51 @@ export const getProfile = asyncErrors(async (req, res, next) => {
         user: userData,
     });
 });
+export const submitContact = asyncErrors(async (req, res, next) => {
+    const { name, email, subject, message } = req.body;
+    console.log(name, "........")
+
+    if (!name || !email || !subject || !message) {
+        return next(new ErrorHandler("All fields are required", 400));
+    }
+
+    if (message.length < 10) {
+        return next(new ErrorHandler("Message must be at least 10 characters", 400));
+    }
+
+    const newContact = await Contact.create({
+        name,
+        email,
+        subject,
+        message,
+    });
+
+    const adminUser = await Users.findOne({
+        where: { role: "admin" },
+        attributes: ["email"],
+        raw: true
+    });
+
+    if (adminUser?.email) {
+        await sendMail({
+            to: adminUser.email,
+            subject: "Contact",
+            html: `
+                <h3>New Contact Message</h3>
+                <p><strong>Name:</strong> ${name}</p>
+                <p><strong>Email:</strong> ${email}</p>
+                <p><strong>Subject:</strong> ${subject}</p>
+                <p><strong>Message:</strong> ${message}</p>
+            `,
+        });
+    }
+
+    res.status(201).json({
+        success: true,
+        message: "Thank you for contacting us! Our team will reach out soon.",
+        contact: newContact,
+    });
+});
 
 // all Categories
 export const getAllCategories = async (req, res) => {
@@ -293,7 +340,7 @@ export const getAllProductsFilters = asyncErrors(async (req, res, next) => {
         const baseUrl = process.env.BASE_URL
             ? `${process.env.BASE_URL}/assets/`
             : `${req.protocol}://${req.get("host")}/assets/`;
-            console.log(baseUrl, "env log.......")
+        // console.log(baseUrl, "env log.......")
         // const baseUrl = `${process.env.BASE_URL}/assets/`;
         const productsWithUrl = plainProducts.map((p) => ({
             ...p,
@@ -380,7 +427,6 @@ export const getProductDetail = async (req, res, next) => {
     }
 };
 
-
 // popular products
 export const getPopularProducts = async (req, res) => {
     try {
@@ -427,7 +473,137 @@ export const getFeaturedProducts = async (req, res) => {
     }
 };
 
-// checkout
+// single user orders
+export const getUserOrders = asyncErrors(async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!id) {
+            return res.status(400).json({
+                success: false,
+                message: "User ID is required",
+            });
+        }
+
+        // Check user exists
+        const user = await Users.findOne({ where: { id } });
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found",
+            });
+        }
+
+        // Fetch orders with order items
+        const orders = await Orders.findAll({
+            where: { user_id: id },
+            order: [["createdAt", "DESC"]],
+            include: [
+                {
+                    model: OrderItems,
+                    as: "items",
+                },
+            ],
+        });
+
+        res.status(200).json({
+            success: true,
+            user: {
+                id: user.id,
+                email: user.email,
+                name: user.user_name,
+            },
+            total_orders: orders.length,
+            orders,
+        });
+    } catch (error) {
+        console.error("Error fetching user orders:", error);
+        res.status(500).json({
+            success: false,
+            message: "Something went wrong",
+            error: error.message,
+        });
+    }
+});
+
+// controllers/orderController.js
+export const getUserOrderDetail = asyncErrors(async (req, res, next) => {
+    try {
+        const { id } = req.user;
+        const { orderId } = req.params;
+
+        if (!id) {
+            return res.status(400).json({
+                success: false,
+                message: "User ID is required",
+            });
+        }
+
+        // Check user exists
+        const user = await Users.findOne({ where: { id } });
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found",
+            });
+        }
+
+        // Fetch single order with items
+        const order = await Orders.findOne({
+            where: { id: orderId, user_id: id },
+            include: [
+                {
+                    model: OrderItems,
+                    as: "items",
+                    include: [
+                        {
+                            model: Products,
+                            as: "product",
+                            attributes: ["id", "name", "product_image"],
+                        },
+                    ],
+                },
+            ],
+        });
+
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                message: "Order not found",
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            user: {
+                id: user.id,
+                email: user.email,
+                name: user.user_name,
+            },
+            order: {
+                ...order.toJSON(),
+                items: order.items.map((item) => ({
+                    ...item.toJSON(),
+                    product: {
+                        ...item.product.toJSON(),
+                        product_image: item.product.product_image
+                            ? `${process.env.BASE_URL}/assets/${item.product.product_image}`
+                            : null,
+                    },
+                })),
+            },
+        });
+    } catch (error) {
+        console.error("Error fetching order detail:", error);
+        res.status(500).json({
+            success: false,
+            message: "Something went wrong",
+            error: error.message,
+        });
+    }
+});
+
+
 
 
 

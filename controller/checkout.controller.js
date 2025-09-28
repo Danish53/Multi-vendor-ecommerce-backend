@@ -77,6 +77,12 @@ export const checkout = asyncErrors(async (req, res, next) => {
         };
     });
 
+    // -------- COD extra charges --------
+    if (payment_method === "COD") {
+        total_amount += 50; // Add extra 50 rupees for COD
+    }
+
+
     // -------- Order Create --------
     const order = await Orders.create({
         user_id: user.id,

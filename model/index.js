@@ -1,5 +1,7 @@
 import { sequelize } from "../database/dbConnection.js";
 import { Categories } from "./category.model.js";
+import { OrderItems } from "./orderItems.model.js";
+import { Orders } from "./orders.model.js";
 import { Products } from "./product.model.js";
 import { ProductImages } from "./productImages.model.js";
 import { Users } from "./user.model.js";
@@ -39,6 +41,27 @@ Products.belongsTo(Users, {
     onDelete: "CASCADE",
     onUpdate: "CASCADE"
 });
+
+Orders.hasMany(OrderItems, {
+    foreignKey: "order_id",
+    as: "items",
+    onDelete: "CASCADE",
+    onUpdate: "CASCADE"
+});
+
+OrderItems.belongsTo(Orders, {
+    foreignKey: "order_id",
+    as: "order",
+    onDelete: "CASCADE",
+    onUpdate: "CASCADE"
+});
+
+Users.hasMany(Orders, { foreignKey: "user_id", as: "orders" }); // customer side
+Orders.belongsTo(Users, { foreignKey: "user_id", as: "customer" });
+
+Products.hasMany(OrderItems, { foreignKey: "product_id", as: "orderItems" });
+OrderItems.belongsTo(Products, { foreignKey: "product_id", as: "product" });
+
 
 
 export { sequelize };
