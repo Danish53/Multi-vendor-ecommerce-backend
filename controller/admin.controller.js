@@ -8,6 +8,7 @@ import { Categories } from "../model/category.model.js";
 import slugify from "slugify";
 import { Products } from "../model/product.model.js";
 import { ProductImages } from "../model/productImages.model.js";
+import { Orders } from "../model/orders.model.js";
 
 // Auth admin
 export const adminLogin = asyncErrors(async (req, res, next) => {
@@ -344,6 +345,122 @@ export const getSingleVendorProducts = asyncErrors(async (req, res, next) => {
         products: formattedProducts,
     });
 });
+
+export const updateOrderStatusadmin = asyncErrors(async (req, res, next) => {
+  const { orderId, userId } = req.params;
+  const { status, reason } = req.body;
+
+  const order = await Orders.findOne({ where: { id: orderId} });
+
+  if (!order) {
+    return res.status(404).json({ success: false, message: "Order not found" });
+  }
+
+  const currentStatus = order.order_status.toLowerCase();
+  const newStatus = status.toLowerCase();
+
+  // =============== USER STATUS HANDLING ===============
+
+  // 1️⃣ Cancel Order
+  if (newStatus === "cancel") {
+    if (currentStatus !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: "You can only cancel a pending order.",
+      });
+    }
+
+    order.order_status = "Cancelled";
+    order.user_reason = reason || null;
+    await order.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Order cancelled successfully.",
+      order,
+    });
+  }
+
+  // 2️⃣ Return Order
+  if (newStatus === "return") {
+    if (currentStatus !== "delivered") {
+      return res.status(400).json({
+        success: false,
+        message: "Order must be delivered before you can request a return.",
+      });
+    }
+
+    order.order_status = "Return Requested";
+    order.user_reason = reason || null;
+    await order.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Return request submitted.",
+      order,
+    });
+  }
+
+  // 3️⃣ Refund Order
+  if (newStatus === "refund") {
+    if (currentStatus !== "delivered" && currentStatus !== "return accepted") {
+      return res.status(400).json({
+        success: false,
+        message: "Refund can only be applied on delivered or returned orders.",
+      });
+    }
+
+    order.order_status = "Refund Requested";
+    order.user_reason = reason || null;
+    await order.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Refund request submitted.",
+      order,
+    });
+  }
+
+  // 4️⃣ Claim Order (damaged, missing, wrong item)
+  if (newStatus === "claim") {
+    if (currentStatus !== "delivered") {
+      return res.status(400).json({
+        success: false,
+        message: "You can only claim an order that is delivered.",
+      });
+    }
+
+    order.order_status = "Claim Requested";
+    order.user_reason = reason || null;
+    await order.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Order claim submitted.",
+      order,
+    });
+  }
+
+  const user = await Users.findOne({ where: { id: userId } });
+
+  // =============== ADMIN HANDLING ===============
+  if (user.role === "admin") {
+    order.order_status = status;
+    await order.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Order status updated by admin.",
+      order,
+    });
+  }
+
+  return res.status(403).json({
+    success: false,
+    message: "You are not allowed to change this order status.",
+  });
+});
+
 
 
 

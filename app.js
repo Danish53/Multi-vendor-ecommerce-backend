@@ -15,6 +15,7 @@ import { syncAllTables } from "./syncAllTables/syncAllTables.js";
 import userRouter from "./router/user.router.js";
 import adminRouter from "./router/admin.router.js";
 import vendorRouter from "./router/vendor.router.js";
+import { Server } from "socket.io"; 
 
 // __dirname support in ES module
 const __filename = fileURLToPath(import.meta.url);
@@ -58,6 +59,42 @@ app.get("/", function (req, res) {
 app.get("/test", function (req, res) {
   res.send("Working Api on this server cors!");
 });
+
+// messages socket io
+const io = new Server(server, {
+  cors: {
+    origin: process.env.FRONTEND,
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+});
+
+io.on("connection", (socket) => {
+  console.log("User connected:", socket.id);
+
+  // join user room
+  socket.on("join", (userId) => {
+    socket.join(userId);
+  });
+
+  // send message realtime
+  socket.on("send_message", (data) => {
+    const { sender_id, receiver_id, message } = data;
+
+    // send to receiver only
+    io.to(receiver_id).emit("receive_message", {
+      sender_id,
+      receiver_id,
+      message,
+      createdAt: new Date(),
+    });
+  });
+
+  socket.on("disconnect", () => {
+    console.log("User disconnected");
+  });
+});
+
 
 app.get("/api/syncAllTables", syncAllTables);
 app.use("/api/v1/user", userRouter);

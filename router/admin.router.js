@@ -1,7 +1,8 @@
 import express from "express";
-import { adminLogin, allUsers, allVendors, createCategory, deleteCategory, getAdminProfile, getAllCategories, getSingleVendorProducts, toggleSoftDeleteUser, updateAdminProfile, updateCategory, updateProductFeature, updateProductPopularity, updateVendorStatus } from "../controller/admin.controller.js";
+import { adminLogin, allUsers, allVendors, createCategory, deleteCategory, getAdminProfile, getAllCategories, getSingleVendorProducts, toggleSoftDeleteUser, updateAdminProfile, updateCategory, updateOrderStatusadmin, updateProductFeature, updateProductPopularity, updateVendorStatus } from "../controller/admin.controller.js";
 import { isAuthenticated, isAuthorized } from "../middleware/Auth.js";
 import { upload } from "../middleware/multer.js";
+import { getVendorOrders } from "../controller/user.controller.js";
 
 
 const router = express.Router();
@@ -32,5 +33,9 @@ router.get("/all-vendors", allVendors);
 router.delete("/soft-toggle-delete/:id", toggleSoftDeleteUser);
 // single vendor products
 router.get("/single-vendor-products/:vendor_id", getSingleVendorProducts);
+
+// vendor orders
+router.get("/vendor-orders-list/:id", getVendorOrders);
+router.post("/order-status/:orderId/:userId", updateOrderStatusadmin);
 
 export default router;

@@ -1,5 +1,5 @@
 import express from "express";
-import { getAllProductsFilters, getFeaturedProducts, getPopularProducts, getProductDetail, getProfile, getUserOrderDetail, getUserOrders, login, register, submitContact, updateProfile } from "../controller/user.controller.js";
+import { getAllProductsFilters, getFeaturedProducts, getMessages, getPopularProducts, getProductDetail, getProfile, getUserOrderDetail, getUserOrders, login, register, sendMessage, submitContact, updateOrderStatus, updateProfile } from "../controller/user.controller.js";
 import { upload } from "../middleware/multer.js";
 import { isAuthenticated } from "../middleware/Auth.js";
 import { getAllCategories } from "../controller/admin.controller.js";
@@ -32,8 +32,14 @@ router.post("/checkout", checkout);
 // orders
 router.get("/user-orders-list", isAuthenticated, getUserOrders);
 router.get("/user-orders-detail/:orderId", isAuthenticated, getUserOrderDetail);
+router.post("/order-status/:orderId", isAuthenticated, updateOrderStatus);
 // contact us
 router.post("/contact", submitContact);
+
+// messages
+router.post("/send", sendMessage);
+router.get("/chat/:user1/:user2", getMessages);
+
 
 
 

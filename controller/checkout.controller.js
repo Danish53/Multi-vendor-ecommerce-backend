@@ -5,6 +5,7 @@ import { Orders } from "../model/orders.model.js";
 import { OrderItems } from "../model/orderItems.model.js";
 import { asyncErrors } from "../middleware/asyncErrors.js";
 import jwt from "jsonwebtoken";
+import axios from "axios";
 
 export const checkout = asyncErrors(async (req, res, next) => {
     const { user_id, email, password, cart, shipping_address, payment_method } = req.body;
@@ -77,8 +78,10 @@ export const checkout = asyncErrors(async (req, res, next) => {
         };
     });
 
+    const paymentType = payment_method?.toLowerCase();
+
     // -------- COD extra charges --------
-    if (payment_method === "COD") {
+    if (paymentType === "COD") {
         total_amount += 50; // Add extra 50 rupees for COD
     }
 
@@ -88,7 +91,7 @@ export const checkout = asyncErrors(async (req, res, next) => {
         user_id: user.id,
         total_amount,
         admin_commission,
-        payment_method,
+        payment_method: paymentType,
         shipping_address,
         order_status: "Pending",
     });
@@ -101,6 +104,54 @@ export const checkout = asyncErrors(async (req, res, next) => {
         });
     }
 
+    // -------- Safepay Payment Intent --------
+    if (paymentType === "safepay") {
+        console.log("Safepay branch executing...");
+        try {
+            const paymentResponse = await axios.post(
+                `https://sandbox.api.getsafepay.com/order/v1/init`,
+                {
+                    amount: total_amount * 100,
+                    currency: "PKR",
+                    intent: "sale",
+                    order_id: order.id.toString(),
+                    redirect_url: `${process.env.FRONTEND_URL}order/success`,
+                    cancel_url: `${process.env.FRONTEND_URL}order/cancel`,
+                    environment: "sandbox",
+                    client: process.env.SAFEPAY_PUBLIC_KEY,
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${process.env.SAFEPAY_SECRET_KEY}`,
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+            console.log(paymentResponse, "payment res....")
+
+            const paymentLink = `${process.env.SAFEPAY_URL_SAND.replace(
+                "api.",
+                ""
+            )}/checkout/${paymentResponse.data.data.token}`;
+
+            return res.status(200).json({
+                success: true,
+                message: "Order created and payment link generated",
+                payment_link: paymentLink,
+                order,
+                token: token || null,
+            });
+        } catch (err) {
+            console.error("Safepay Error:", err.response?.data || err.message);
+            return res.status(500).json({
+                success: false,
+                message: "Payment initiation failed",
+                error: err.message,
+            });
+        }
+    }
+
+
     res.status(200).json({
         success: true,
         message: "Order created successfully",
@@ -108,5 +159,7 @@ export const checkout = asyncErrors(async (req, res, next) => {
         order,
         order_items: orderItemsData,
     });
-});
+}); 
+
+
 

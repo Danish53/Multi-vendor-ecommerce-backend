@@ -9,6 +9,7 @@ import { sendMail } from "../utils/sendMail.js";
 import { Orders } from "../model/orders.model.js";
 import { OrderItems } from "../model/orderItems.model.js";
 import { Contact } from "../model/contact.model.js";
+import { Messages } from "../model/messages.model.js";
 
 // Auth User
 export const register = asyncErrors(async (req, res, next) => {
@@ -532,10 +533,10 @@ export const getUserOrderDetail = asyncErrors(async (req, res, next) => {
         const { id } = req.user;
         const { orderId } = req.params;
 
-        if (!id) {
+        if (!id || !orderId) {
             return res.status(400).json({
                 success: false,
-                message: "User ID is required",
+                message: "User ID and order-id is required",
             });
         }
 
@@ -550,7 +551,7 @@ export const getUserOrderDetail = asyncErrors(async (req, res, next) => {
 
         // Fetch single order with items
         const order = await Orders.findOne({
-            where: { id: orderId, user_id: id },
+            where: { id: orderId, user_id: user.id },
             include: [
                 {
                     model: OrderItems,
@@ -559,7 +560,7 @@ export const getUserOrderDetail = asyncErrors(async (req, res, next) => {
                         {
                             model: Products,
                             as: "product",
-                            attributes: ["id", "name", "product_image"],
+                            attributes: ["id", "name", "product_image", "vendor_id"],
                         },
                     ],
                 },
@@ -602,6 +603,215 @@ export const getUserOrderDetail = asyncErrors(async (req, res, next) => {
         });
     }
 });
+
+// controllers/orderController.js
+export const updateOrderStatus = asyncErrors(async (req, res, next) => {
+  const { orderId } = req.params;
+  const { status, reason } = req.body; 
+  const userId = req.user.id;
+
+  const order = await Orders.findOne({ where: { id: orderId, user_id: userId } });
+
+  if (!order) {
+    return res.status(404).json({ success: false, message: "Order not found" });
+  }
+
+  const currentStatus = order.order_status.toLowerCase();
+  const newStatus = status.toLowerCase();
+
+  // =============== USER STATUS HANDLING ===============
+
+  // 1️⃣ Cancel Order
+  if (newStatus === "cancel") {
+    if (currentStatus !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: "You can only cancel a pending order.",
+      });
+    }
+
+    order.order_status = "Cancelled";
+    order.user_reason = reason || null;
+    await order.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Order cancelled successfully.",
+      order,
+    });
+  }
+
+  // 2️⃣ Return Order
+  if (newStatus === "return") {
+    if (currentStatus !== "delivered") {
+      return res.status(400).json({
+        success: false,
+        message: "Order must be delivered before you can request a return.",
+      });
+    }
+
+    order.order_status = "Return Requested";
+    order.user_reason = reason || null;
+    await order.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Return request submitted.",
+      order,
+    });
+  }
+
+  // 3️⃣ Refund Order
+  if (newStatus === "refund") {
+    if (currentStatus !== "delivered" && currentStatus !== "return accepted") {
+      return res.status(400).json({
+        success: false,
+        message: "Refund can only be applied on delivered or returned orders.",
+      });
+    }
+
+    order.order_status = "Refund Requested";
+    order.user_reason = reason || null;
+    await order.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Refund request submitted.",
+      order,
+    });
+  }
+
+  // 4️⃣ Claim Order (damaged, missing, wrong item)
+  if (newStatus === "claim") {
+    if (currentStatus !== "delivered") {
+      return res.status(400).json({
+        success: false,
+        message: "You can only claim an order that is delivered.",
+      });
+    }
+
+    order.order_status = "Claim Requested";
+    order.user_reason = reason || null;
+    await order.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Order claim submitted.",
+      order,
+    });
+  }
+
+  // =============== ADMIN HANDLING ===============
+  if (req.user.role === "admin") {
+    order.order_status = status;
+    await order.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Order status updated by admin.",
+      order,
+    });
+  }
+
+  return res.status(403).json({
+    success: false,
+    message: "You are not allowed to change this order status.",
+  });
+});
+
+// vendor orders
+export const getVendorOrders = asyncErrors(async (req, res, next) => {
+    try {
+        const { id } = req.params;
+
+        if (!id) {
+            return res.status(400).json({
+                success: false,
+                message: "User ID is required",
+            });
+        }
+
+        // Check user exists
+        const user = await Users.findOne({ where: { id } });
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found",
+            });
+        }
+
+        // Fetch orders with order items
+        const orders = await Orders.findAll({
+            where: { user_id: id },
+            order: [["createdAt", "DESC"]],
+            include: [
+                {
+                    model: OrderItems,
+                    as: "items",
+                },
+            ],
+        });
+
+        res.status(200).json({
+            success: true,
+            user: {
+                id: user.id,
+                email: user.email,
+                name: user.user_name,
+            },
+            total_orders: orders.length,
+            orders,
+        });
+    } catch (error) {
+        console.error("Error fetching user orders:", error);
+        res.status(500).json({
+            success: false,
+            message: "Something went wrong",
+            error: error.message,
+        });
+    }
+});
+
+
+// messages
+export const sendMessage = asyncErrors(async (req, res) => {
+  const { sender_id, receiver_id, message } = req.body;
+
+  if (!sender_id || !receiver_id || !message) {
+    return res.status(400).json({ success: false, message: "Missing fields" });
+  }
+
+  const newMessage = await Messages.create({
+    sender_id,
+    receiver_id,
+    message,
+  });
+
+  return res.status(201).json({
+    success: true,
+    message: "Message sent",
+    data: newMessage,
+  });
+});
+
+// GET ALL CHAT MESSAGES (USER ↔ VENDOR)
+export const getMessages = asyncErrors(async (req, res) => {
+  const { user1, user2 } = req.params;
+
+  const messages = await Messages.findAll({
+    where: {
+      sender_id: [user1, user2],
+      receiver_id: [user1, user2],
+    },
+    order: [["createdAt", "ASC"]],
+  });
+
+  return res.status(200).json({
+    success: true,
+    data: messages,
+  });
+});
+
 
 
 
