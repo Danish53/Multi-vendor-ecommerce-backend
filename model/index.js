@@ -1,4 +1,5 @@
 import { sequelize } from "../database/dbConnection.js";
+import { Ads } from "./ads.model.js";
 import { Categories } from "./category.model.js";
 import { OrderItems } from "./orderItems.model.js";
 import { Orders } from "./orders.model.js";
@@ -61,6 +62,10 @@ Orders.belongsTo(Users, { foreignKey: "user_id", as: "customer" });
 
 Products.hasMany(OrderItems, { foreignKey: "product_id", as: "orderItems" });
 OrderItems.belongsTo(Products, { foreignKey: "product_id", as: "product" });
+
+Ads.belongsTo(Products, { foreignKey: "product_id" });
+Products.hasMany(Ads, { foreignKey: "product_id" });
+
 
 
 

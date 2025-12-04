@@ -1,5 +1,5 @@
 import express from "express";
-import { getAllProductsFilters, getFeaturedProducts, getMessages, getPopularProducts, getProductDetail, getProfile, getUserOrderDetail, getUserOrders, login, register, sendMessage, submitContact, updateOrderStatus, updateProfile } from "../controller/user.controller.js";
+import { createAd, getAds, getAllChats, getAllProductsFilters, getFeaturedProducts, getMessages, getPopularProducts, getProductDetail, getProfile, getUserOrderDetail, getUserOrders, getVendorPlans, login, register, requestPlan, sendMessage, submitContact, updateOrderStatus, updateProfile } from "../controller/user.controller.js";
 import { upload } from "../middleware/multer.js";
 import { isAuthenticated } from "../middleware/Auth.js";
 import { getAllCategories } from "../controller/admin.controller.js";
@@ -39,9 +39,14 @@ router.post("/contact", submitContact);
 // messages
 router.post("/send", sendMessage);
 router.get("/chat/:user1/:user2", getMessages);
+router.get("/chats", isAuthenticated, getAllChats);
 
+// plan
+router.post("/plan/request", upload.single("receipt"), requestPlan);
+router.get("/request/by-vendor/:vendor_id", getVendorPlans);
 
-
+router.post("/create-ads", createAd);
+router.get("/ads", getAds)
 
 
 export default router;

@@ -80,16 +80,17 @@ export const checkout = asyncErrors(async (req, res, next) => {
 
     const paymentType = payment_method?.toLowerCase();
 
-    // -------- COD extra charges --------
-    if (paymentType === "COD") {
-        total_amount += 50; // Add extra 50 rupees for COD
-    }
+    // // -------- COD extra charges --------
+    // if (paymentType === "COD") {
+    //     total_amount += 50; // Add extra 50 rupees for COD
+    // }
 
 
     // -------- Order Create --------
+    // add 50 rupee total amount
     const order = await Orders.create({
         user_id: user.id,
-        total_amount,
+        total_amount: total_amount += 50,
         admin_commission,
         payment_method: paymentType,
         shipping_address,

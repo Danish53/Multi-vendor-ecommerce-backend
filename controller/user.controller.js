@@ -10,6 +10,8 @@ import { Orders } from "../model/orders.model.js";
 import { OrderItems } from "../model/orderItems.model.js";
 import { Contact } from "../model/contact.model.js";
 import { Messages } from "../model/messages.model.js";
+import { VendorPlanRequest } from "../model/vendorPlan.model.js";
+import { Ads } from "../model/ads.model.js";
 
 // Auth User
 export const register = asyncErrors(async (req, res, next) => {
@@ -606,117 +608,117 @@ export const getUserOrderDetail = asyncErrors(async (req, res, next) => {
 
 // controllers/orderController.js
 export const updateOrderStatus = asyncErrors(async (req, res, next) => {
-  const { orderId } = req.params;
-  const { status, reason } = req.body; 
-  const userId = req.user.id;
+    const { orderId } = req.params;
+    const { status, reason } = req.body;
+    const userId = req.user.id;
 
-  const order = await Orders.findOne({ where: { id: orderId, user_id: userId } });
+    const order = await Orders.findOne({ where: { id: orderId, user_id: userId } });
 
-  if (!order) {
-    return res.status(404).json({ success: false, message: "Order not found" });
-  }
-
-  const currentStatus = order.order_status.toLowerCase();
-  const newStatus = status.toLowerCase();
-
-  // =============== USER STATUS HANDLING ===============
-
-  // 1️⃣ Cancel Order
-  if (newStatus === "cancel") {
-    if (currentStatus !== "pending") {
-      return res.status(400).json({
-        success: false,
-        message: "You can only cancel a pending order.",
-      });
+    if (!order) {
+        return res.status(404).json({ success: false, message: "Order not found" });
     }
 
-    order.order_status = "Cancelled";
-    order.user_reason = reason || null;
-    await order.save();
+    const currentStatus = order.order_status.toLowerCase();
+    const newStatus = status.toLowerCase();
 
-    return res.status(200).json({
-      success: true,
-      message: "Order cancelled successfully.",
-      order,
-    });
-  }
+    // =============== USER STATUS HANDLING ===============
 
-  // 2️⃣ Return Order
-  if (newStatus === "return") {
-    if (currentStatus !== "delivered") {
-      return res.status(400).json({
-        success: false,
-        message: "Order must be delivered before you can request a return.",
-      });
+    // 1️⃣ Cancel Order
+    if (newStatus === "cancel") {
+        if (currentStatus !== "pending") {
+            return res.status(400).json({
+                success: false,
+                message: "You can only cancel a pending order.",
+            });
+        }
+
+        order.order_status = "Cancelled";
+        order.user_reason = reason || null;
+        await order.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "Order cancelled successfully.",
+            order,
+        });
     }
 
-    order.order_status = "Return Requested";
-    order.user_reason = reason || null;
-    await order.save();
+    // 2️⃣ Return Order
+    if (newStatus === "return") {
+        if (currentStatus !== "delivered") {
+            return res.status(400).json({
+                success: false,
+                message: "Order must be delivered before you can request a return.",
+            });
+        }
 
-    return res.status(200).json({
-      success: true,
-      message: "Return request submitted.",
-      order,
-    });
-  }
+        order.order_status = "Return Requested";
+        order.user_reason = reason || null;
+        await order.save();
 
-  // 3️⃣ Refund Order
-  if (newStatus === "refund") {
-    if (currentStatus !== "delivered" && currentStatus !== "return accepted") {
-      return res.status(400).json({
-        success: false,
-        message: "Refund can only be applied on delivered or returned orders.",
-      });
+        return res.status(200).json({
+            success: true,
+            message: "Return request submitted.",
+            order,
+        });
     }
 
-    order.order_status = "Refund Requested";
-    order.user_reason = reason || null;
-    await order.save();
+    // 3️⃣ Refund Order
+    if (newStatus === "refund") {
+        if (currentStatus !== "delivered" && currentStatus !== "return accepted") {
+            return res.status(400).json({
+                success: false,
+                message: "Refund can only be applied on delivered or returned orders.",
+            });
+        }
 
-    return res.status(200).json({
-      success: true,
-      message: "Refund request submitted.",
-      order,
-    });
-  }
+        order.order_status = "Refund Requested";
+        order.user_reason = reason || null;
+        await order.save();
 
-  // 4️⃣ Claim Order (damaged, missing, wrong item)
-  if (newStatus === "claim") {
-    if (currentStatus !== "delivered") {
-      return res.status(400).json({
-        success: false,
-        message: "You can only claim an order that is delivered.",
-      });
+        return res.status(200).json({
+            success: true,
+            message: "Refund request submitted.",
+            order,
+        });
     }
 
-    order.order_status = "Claim Requested";
-    order.user_reason = reason || null;
-    await order.save();
+    // 4️⃣ Claim Order (damaged, missing, wrong item)
+    if (newStatus === "claim") {
+        if (currentStatus !== "delivered") {
+            return res.status(400).json({
+                success: false,
+                message: "You can only claim an order that is delivered.",
+            });
+        }
 
-    return res.status(200).json({
-      success: true,
-      message: "Order claim submitted.",
-      order,
+        order.order_status = "Claim Requested";
+        order.user_reason = reason || null;
+        await order.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "Order claim submitted.",
+            order,
+        });
+    }
+
+    // =============== ADMIN HANDLING ===============
+    if (req.user.role === "admin") {
+        order.order_status = status;
+        await order.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "Order status updated by admin.",
+            order,
+        });
+    }
+
+    return res.status(403).json({
+        success: false,
+        message: "You are not allowed to change this order status.",
     });
-  }
-
-  // =============== ADMIN HANDLING ===============
-  if (req.user.role === "admin") {
-    order.order_status = status;
-    await order.save();
-
-    return res.status(200).json({
-      success: true,
-      message: "Order status updated by admin.",
-      order,
-    });
-  }
-
-  return res.status(403).json({
-    success: false,
-    message: "You are not allowed to change this order status.",
-  });
 });
 
 // vendor orders
@@ -727,43 +729,76 @@ export const getVendorOrders = asyncErrors(async (req, res, next) => {
         if (!id) {
             return res.status(400).json({
                 success: false,
-                message: "User ID is required",
+                message: "Vendor ID is required",
             });
         }
 
-        // Check user exists
-        const user = await Users.findOne({ where: { id } });
-        if (!user) {
+        // Find vendor
+        const vendor = await Users.findOne({ where: { id } });
+        if (!vendor) {
             return res.status(404).json({
                 success: false,
-                message: "User not found",
+                message: "Vendor not found",
             });
         }
 
-        // Fetch orders with order items
+        // Find all orders that contain vendor’s products
         const orders = await Orders.findAll({
-            where: { user_id: id },
-            order: [["createdAt", "DESC"]],
             include: [
                 {
                     model: OrderItems,
                     as: "items",
+                    where: { vendor_id: id },
+                    include: [
+                        {
+                            model: Products,
+                            as: "product",
+                        },
+                    ],
                 },
+               
             ],
+            order: [["createdAt", "DESC"]],
+        });
+
+        // Add payment details
+        const detailedOrders = orders.map((order) => {
+            let vendor_total = 0;
+            let admin_total = 0;
+
+            order.items.forEach((item) => {
+                const itemTotal = item.quantity * item.price;
+
+                const vendorShare = (itemTotal * 80) / 100; // 80% vendor
+                const adminShare = (itemTotal * 20) / 100; // 20% admin
+
+                vendor_total += vendorShare;
+                admin_total += adminShare;
+            });
+
+            return {
+                ...order.toJSON(),
+                payment_details: {
+                    vendor_earning: vendor_total.toFixed(2),
+                    admin_earning: admin_total.toFixed(2),
+                    total_order_value: order.total_amount,
+                    payment_method: order.payment_method,
+                },
+            };
         });
 
         res.status(200).json({
             success: true,
-            user: {
-                id: user.id,
-                email: user.email,
-                name: user.user_name,
+            vendor: {
+                id: vendor.id,
+                name: vendor.user_name,
+                email: vendor.email,
             },
-            total_orders: orders.length,
-            orders,
+            total_orders: detailedOrders.length,
+            orders: detailedOrders,
         });
     } catch (error) {
-        console.error("Error fetching user orders:", error);
+        console.error("Error fetching vendor orders:", error);
         res.status(500).json({
             success: false,
             message: "Something went wrong",
@@ -773,44 +808,220 @@ export const getVendorOrders = asyncErrors(async (req, res, next) => {
 });
 
 
+
+
 // messages
 export const sendMessage = asyncErrors(async (req, res) => {
-  const { sender_id, receiver_id, message } = req.body;
+    const { sender_id, receiver_id, message } = req.body;
 
-  if (!sender_id || !receiver_id || !message) {
-    return res.status(400).json({ success: false, message: "Missing fields" });
-  }
+    if (!sender_id || !receiver_id || !message) {
+        return res.status(400).json({ success: false, message: "Missing fields" });
+    }
 
-  const newMessage = await Messages.create({
-    sender_id,
-    receiver_id,
-    message,
-  });
+    const newMessage = await Messages.create({
+        sender_id,
+        receiver_id,
+        message,
+    });
 
-  return res.status(201).json({
-    success: true,
-    message: "Message sent",
-    data: newMessage,
-  });
+    return res.status(201).json({
+        success: true,
+        message: "Message sent",
+        data: newMessage,
+    });
 });
 
 // GET ALL CHAT MESSAGES (USER ↔ VENDOR)
 export const getMessages = asyncErrors(async (req, res) => {
-  const { user1, user2 } = req.params;
+    const { user1, user2 } = req.params;
 
-  const messages = await Messages.findAll({
-    where: {
-      sender_id: [user1, user2],
-      receiver_id: [user1, user2],
-    },
-    order: [["createdAt", "ASC"]],
-  });
+    const messages = await Messages.findAll({
+        where: {
+            sender_id: [user1, user2],
+            receiver_id: [user1, user2],
+        },
+        order: [["createdAt", "ASC"]],
+    });
 
-  return res.status(200).json({
-    success: true,
-    data: messages,
-  });
+    return res.status(200).json({
+        success: true,
+        data: messages,
+    });
 });
+
+// get all chats every user involved
+export const getAllChats = asyncErrors(async (req, res) => {
+    const userId = req.user.id;
+
+    const chats = await Messages.findAll({
+        where: {
+            [Op.and]: [
+                {
+                    [Op.or]: [
+                        { sender_id: userId },
+                        { receiver_id: userId }
+                    ]
+                },
+                // remove chats where BOTH ids are this user
+                {
+                    [Op.not]: [
+                        {
+                            sender_id: userId,
+                            receiver_id: userId
+                        }
+                    ]
+                }
+            ]
+        },
+        order: [["createdAt", "DESC"]],
+    });
+
+    return res.status(200).json({
+        success: true,
+        data: chats,
+    });
+});
+
+// plan buy vendor
+export const requestPlan = asyncErrors(async (req, res, next) => {
+    const { vendor_id, plan_id, message } = req.body;
+
+    if (!vendor_id || !plan_id) {
+        return next(new ErrorHandler("Vendor ID and Plan ID are required", 400));
+    }
+
+    const receipt_image = req.file ? req.file.filename : null;
+
+    const existingRequest = await VendorPlanRequest.findOne({
+        where: { vendor_id, plan_id, status: "pending" },
+    });
+
+    if (existingRequest) {
+        return next(new ErrorHandler("A pending request for this plan already exists", 400));
+    }
+
+    const planRequest = await VendorPlanRequest.create({
+        vendor_id,
+        plan_id,
+        message,
+        receipt_image,
+        status: "pending",
+    });
+
+    res.status(200).json({
+        success: true,
+        message: "Plan request submitted successfully! Waiting for admin approval.",
+        request: planRequest,
+    });
+});
+
+// single user plan
+export const getVendorPlans = asyncErrors(async (req, res, next) => {
+    try {
+        const { vendor_id } = req.params;
+        if (!vendor_id) {
+            return res.status(400).json({
+                success: false,
+                message: "Vendor ID is required",
+            });
+        }
+        // Check vendor exists
+        const vendor = await Users.findOne({ where: { id: vendor_id, role: 'vendor' } });
+        if (!vendor) {
+            return res.status(404).json({
+                success: false,
+                message: "Vendor not found",
+            });
+        }
+        // Fetch plans
+        const plan = await VendorPlanRequest.findOne({
+            where: { vendor_id, status: 'approved' },
+            order: [["createdAt", "DESC"]],
+        });
+        res.status(200).json({
+            success: true,
+            request: plan,
+        });
+    } catch (error) {
+        console.error("Error fetching vendor plans:", error);
+        res.status(500).json({
+            success: false,
+            message: "Something went wrong",
+            error: error.message,
+        });
+    }
+});
+
+export const createAd = async (req, res, next) => {
+    try {
+        const { vendor_id, product_id, ad_text } = req.body;
+
+        if (!vendor_id || !product_id) {
+            return res.status(400).json({
+                success: false,
+                message: "Vendor ID and Product ID are required",
+            });
+        }
+
+        // Check if vendor has APPROVED plan
+        const approvedPlan = await VendorPlanRequest.findOne({
+            where: { vendor_id, status: "approved" },
+        });
+
+        if (!approvedPlan) {
+            return res.status(400).json({
+                success: false,
+                message: "You do not have an approved plan",
+            });
+        }
+
+        // Create Ad
+        const ad = await Ads.create({
+            vendor_id,
+            product_id,
+            ad_text,
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "Ad created successfully!",
+            ad,
+        });
+
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            success: false,
+            message: "Internal server error",
+        });
+    }
+};
+
+// list adds 
+export const getAds = async (req, res) => {
+  try {
+    const ads = await Ads.findAll({
+      include: [
+        {
+          model: Products,
+          attributes: ["id", "name", "product_image"],
+        },
+      ],
+    });
+
+    return res.status(200).json({
+      success: true,
+      ads,
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
 
 
 

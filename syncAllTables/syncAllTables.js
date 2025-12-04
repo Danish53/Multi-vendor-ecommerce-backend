@@ -24,6 +24,9 @@ import { Orders } from "../model/orders.model.js";
 import { OrderItems } from "../model/orderItems.model.js";
 import "../model/index.js";
 import { Contact } from "../model/contact.model.js";
+import { Plan } from "../model/plan.model.js";
+import { VendorPlanRequest } from "../model/vendorPlan.model.js";
+import { Ads } from "../model/ads.model.js";
 
 /**
  * Sequentially sync all tables to avoid foreign key issues
@@ -40,6 +43,10 @@ export const syncAllTables = async (req, res) => {
     await Orders.sync({ alter: true });
     await OrderItems.sync({ alter: true });
     await Contact.sync({ alter: true });
+    await Plan.sync({ alter: true });
+    await VendorPlanRequest.sync({ alter: true });
+    await Ads.sync({ alter: true });
+
 
     res.status(200).json({ message: "All tables synchronized successfully!" });
   } catch (err) {
