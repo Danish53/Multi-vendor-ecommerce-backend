@@ -90,7 +90,7 @@ export const checkout = asyncErrors(async (req, res, next) => {
     // add 50 rupee total amount
     const order = await Orders.create({
         user_id: user.id,
-        total_amount: total_amount += 50,
+        total_amount,
         admin_commission,
         payment_method: paymentType,
         shipping_address,

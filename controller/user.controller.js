@@ -553,7 +553,7 @@ export const getUserOrderDetail = asyncErrors(async (req, res, next) => {
 
         // Fetch single order with items
         const order = await Orders.findOne({
-            where: { id: orderId, user_id: user.id },
+            where: { id: orderId },
             include: [
                 {
                     model: OrderItems,
@@ -612,7 +612,7 @@ export const updateOrderStatus = asyncErrors(async (req, res, next) => {
     const { status, reason } = req.body;
     const userId = req.user.id;
 
-    const order = await Orders.findOne({ where: { id: orderId, user_id: userId } });
+    const order = await Orders.findOne({ where: { id: orderId } });
 
     if (!order) {
         return res.status(404).json({ success: false, message: "Order not found" });
